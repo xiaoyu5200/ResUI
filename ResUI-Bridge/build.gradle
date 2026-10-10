@@ -1,0 +1,40 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.resui'
+version = '0.1.19'
+
+repositories {
+    mavenCentral()
+    // Paper API
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+}
+
+dependencies {
+    // 服务端提供，仅编译期需要
+    compileOnly 'io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT'
+    // Residence API：把 Residence 的 jar 放进 libs/（见 libs/README.md），运行时由服务器上的 Residence 提供
+    compileOnly fileTree(dir: 'libs', include: ['Residence*.jar'])
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+processResources {
+    // 声明输入，避免版本号变化时被增量构建跳过
+    inputs.property 'version', project.version
+    filesMatching('plugin.yml') {
+        expand version: project.version
+    }
+}
+
+jar {
+    archiveBaseName = 'ResUI-Bridge'
+}

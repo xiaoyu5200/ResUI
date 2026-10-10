@@ -1,0 +1,13 @@
+name: ResUI-Bridge
+version: '${version}'
+main: com.resui.bridge.ResUiBridgePlugin
+api-version: '1.21'
+authors: [ResUI]
+description: 把 Residence 领地数据（自己的 / 可传送的公共领地）推送给 ResUI 客户端 mod
+depend: [Residence]
+folia-supported: true
+
+commands:
+  resbridge:
+    description: 立即把领地数据推送给你的客户端
+    usage: /resbridge

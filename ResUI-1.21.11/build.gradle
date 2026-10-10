@@ -1,0 +1,54 @@
+plugins {
+    // 1.17.x 适配 Gradle 9.5；1.18.x 需要 Gradle 9.7
+    id 'fabric-loom' version '1.17.21'
+    id 'java'
+}
+
+version = project.mod_version
+group = project.mod_group
+
+base {
+    archivesName = "${project.mod_id}-fabric-${project.minecraft_version}"
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    // 保持与提取源码一致的官方命名（Mojang mappings）
+    mappings loom.officialMojangMappings()
+
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    // Jar-in-Jar：把 Fabric API 打进产物，玩家只需要装这一个文件
+    include "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+processResources {
+    inputs.property "version", project.mod_version
+    filesMatching("fabric.mod.json") {
+        expand "version": project.mod_version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+    options.release = 21
+}
+
+java {
+    // 编译用 Java 21（Gradle 本体需 Java 25 运行 Loom 1.17.x 插件链）
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
+
+loom {
+    runs {
+        client {
+            client()
+            runDir "run"
+        }
+    }
+}
