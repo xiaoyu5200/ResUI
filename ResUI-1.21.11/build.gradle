@@ -52,3 +52,55 @@ loom {
         }
     }
 }
+
+/**
+ * 部署到客户端实例的 mods 目录。
+ *
+ * 为什么要写成任务：这个客户端用的是**版本隔离**，模组放在 versions/<实例>/mods 里。
+ * 以前每次手敲 Copy-Item，很容易拷到别处（比如服务端的 mods 目录），
+ * 结果就是「改了代码但游戏里看不到变化」。
+ *
+ * 路径可用 -PclientModsDir=... 覆盖；任务会先删掉该目录下的旧 resui jar，
+ * 避免两个版本同时在 mods 里（Fabric 会报重复模组）。
+ *
+ * 游戏运行时 jar 被占用，旧版本删不掉，任务会明确报出来。
+ * 需要先结束客户端时，用 tools\kill-client.ps1（或直接看 README 里的命令）。
+ */
+tasks.register('deployToClient') {
+    group = 'resui'
+    description = '把构建好的 jar 复制到客户端 mods 目录，并清掉旧版本'
+    dependsOn tasks.named('build')
+    def targetDir = providers.gradleProperty('clientModsDir')
+            .getOrElse('D:/游戏/我的世界/.minecraft/versions/esp/mods')
+    def jarTask = tasks.named('remapJar')
+    doLast {
+        def dir = file(targetDir)
+        if (!dir.isDirectory()) {
+            logger.lifecycle("目标目录不存在，跳过部署：${dir}")
+            return
+        }
+        dir.listFiles({ f -> f.isFile() && f.name.startsWith("${project.mod_id}-fabric-") } as FileFilter)
+                ?.each { old ->
+                    if (old.delete()) {
+                        logger.lifecycle("已删除旧版本：${old.name}")
+                    } else {
+                        logger.lifecycle("删不掉（游戏正在运行？）：${old.name}")
+                    }
+                }
+        def built = jarTask.get().archiveFile.get().asFile
+        def target = new File(dir, built.name)
+        // 关键：同名文件被游戏占用时 copy 会静默失败，所以必须校验结果，
+        // 否则会出现「任务说已部署、游戏里其实还是旧代码」这种最难查的情况。
+        try {
+            ant.copy(file: built, tofile: target, overwrite: true)
+        } catch (Exception exception) {
+            throw new GradleException(
+                    "部署失败：${target.name} 无法写入。请先完全关闭 Minecraft 再部署。", exception)
+        }
+        if (!target.isFile() || target.length() != built.length()) {
+            throw new GradleException(
+                    "部署失败：${target.name} 内容不完整。请先完全关闭 Minecraft 再部署。")
+        }
+        logger.lifecycle("已部署 ${built.name} -> ${dir}（${target.length()} 字节）")
+    }
+}

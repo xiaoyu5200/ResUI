@@ -16,7 +16,15 @@ public final class ResidenceCache {
 
     private volatile List<ResidenceEntry> own = List.of();
     private volatile List<ResidenceEntry> publicList = List.of();
+    /** 我租用中的领地（协议 v2：服务端按 RentManager 算出）。 */
+    private volatile List<ResidenceEntry> rented = List.of();
+    /** 领地商城：别人挂牌出售 / 出租的领地（协议 v2：market 字段）。 */
+    private volatile List<ResidenceEntry> market = List.of();
     private volatile List<FlagOption> allFlags = List.of();
+    /** 当前玩家上下文（协议 v2：me 字段）。服务端未推送时为 EMPTY。 */
+    private volatile ResidenceMe me = ResidenceMe.EMPTY;
+    /** 服务端功能开关（协议 v2：switches 字段），界面据此置灰不可用的页。 */
+    private volatile ResidenceSwitches switches = ResidenceSwitches.DEFAULT;
     private volatile long updatedAt;
     private volatile String error = "";
     private volatile String feedback = "";
@@ -31,9 +39,18 @@ public final class ResidenceCache {
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
             own = readList(root, "own");
             publicList = readList(root, "public");
+            rented = readList(root, "rented");
+            market = readList(root, "market");
             List<FlagOption> flags = readFlagOptions(root, "allFlags");
             if (!flags.isEmpty()) {
                 allFlags = flags;
+            }
+            // 协议 v2 新增字段：缺省时保持旧值（兼容只更新了一半的两端）
+            if (root.has("me") && root.get("me").isJsonObject()) {
+                me = ResidenceMe.fromJson(root.getAsJsonObject("me"));
+            }
+            if (root.has("switches") && root.get("switches").isJsonObject()) {
+                switches = ResidenceSwitches.fromJson(root.getAsJsonObject("switches"));
             }
             error = root.has("error") ? root.get("error").getAsString() : "";
             if (root.has("result") && root.get("result").isJsonObject()) {
@@ -114,9 +131,29 @@ public final class ResidenceCache {
         return publicList;
     }
 
+    /** rented: 我租用中的领地（可以续租 / 退租，但不能进入管理面板的写操作）。 */
+    public List<ResidenceEntry> rented() {
+        return rented;
+    }
+
+    /** market: 领地商城的数据源（别人挂牌出售 / 出租的领地）。 */
+    public List<ResidenceEntry> market() {
+        return market;
+    }
+
     /** allFlags: 服务端推来的全部权限项（含中文说明），用于权限列表完整展示。 */
     public List<FlagOption> allFlags() {
         return allFlags;
+    }
+
+    /** me: 当前玩家的上下文（所在地、上限、余额），侧栏与杂项页用。 */
+    public ResidenceMe me() {
+        return me;
+    }
+
+    /** switches: 服务端功能开关，界面据此置灰未启用的功能（如租约系统）。 */
+    public ResidenceSwitches switches() {
+        return switches;
     }
 
     public long updatedAt() {

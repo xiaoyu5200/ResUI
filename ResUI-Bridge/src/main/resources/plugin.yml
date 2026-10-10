@@ -9,5 +9,5 @@ folia-supported: true
 
 commands:
   resbridge:
-    description: 立即把领地数据推送给你的客户端
+    description: 立即把领地数据推送给你的客户端（控制台执行则推给所有玩家）
     usage: /resbridge

@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'com.resui'
-version = '0.1.19'
+version = '0.1.24'
 
 repositories {
     mavenCentral()
@@ -14,8 +14,8 @@ repositories {
 dependencies {
     // 服务端提供，仅编译期需要
     compileOnly 'io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT'
-    // Residence API：把 Residence 的 jar 放进 libs/（见 libs/README.md），运行时由服务器上的 Residence 提供
-    compileOnly fileTree(dir: 'libs', include: ['Residence*.jar'])
+    // Residence API（libs 下为官方 release jar），运行时由服务器上的 Residence 提供
+    compileOnly files('libs/Residence6.0.0.1.jar')
 }
 
 java {
@@ -37,4 +37,23 @@ processResources {
 
 jar {
     archiveBaseName = 'ResUI-Bridge'
+}
+
+// 构建完成后自动把插件部署到本机测试服的 plugins 目录，并清掉旧版本（否则 Paper 会同时看到多个）
+// 路径可用 -PtestServerPlugins=... 覆盖；目录不存在时自动跳过（例如这台机器上没有 E 盘）
+def testServerPlugins = providers.gradleProperty('testServerPlugins').getOrElse('D:/1.21.11/plugins')
+
+tasks.register('deployToTestServer', Copy) {
+    onlyIf { file(testServerPlugins).isDirectory() }
+    from tasks.named('jar')
+    into testServerPlugins
+    doFirst {
+        file(testServerPlugins).listFiles()?.findAll {
+            it.name.startsWith('ResUI-Bridge-') && it.name != "ResUI-Bridge-${project.version}.jar"
+        }?.each { it.delete() }
+    }
+}
+
+tasks.named('build') {
+    finalizedBy 'deployToTestServer'
 }
